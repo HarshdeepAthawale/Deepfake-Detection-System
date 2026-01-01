@@ -22,6 +22,10 @@ export interface ScanResult {
   mediaType?: string
   fileName?: string
   hash?: string
+  gpsCoordinates?: {
+    latitude: number
+    longitude: number
+  } | null
 }
 
 export interface ScanHistoryItem {
@@ -155,23 +159,83 @@ async function uploadFile<T>(
 
 export const apiService = {
   /**
+   * Register a new user
+   */
+  async register(email: string, password: string) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      })
+
+      if (!response.ok) {
+        let errorMessage = "Registration failed"
+        try {
+          const error = await response.json()
+          errorMessage = error.message || error.error || "Registration failed"
+        } catch (parseError) {
+          // If response is not JSON, try to get text
+          try {
+            const text = await response.text()
+            errorMessage = text || `Registration failed with status ${response.status}`
+          } catch {
+            errorMessage = `Registration failed with status ${response.status}`
+          }
+        }
+        throw new Error(errorMessage)
+      }
+
+      return response.json()
+    } catch (error) {
+      // Handle network errors
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        throw new Error("Unable to connect to server. Please ensure the backend is running.")
+      }
+      throw error
+    }
+  },
+
+  /**
    * Login user
    */
   async login(email: string, password: string) {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, password }),
-    })
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      })
 
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || "Login failed")
+      if (!response.ok) {
+        let errorMessage = "Login failed"
+        try {
+          const error = await response.json()
+          errorMessage = error.message || error.error || "Login failed"
+        } catch (parseError) {
+          // If response is not JSON, try to get text
+          try {
+            const text = await response.text()
+            errorMessage = text || `Login failed with status ${response.status}`
+          } catch {
+            errorMessage = `Login failed with status ${response.status}`
+          }
+        }
+        throw new Error(errorMessage)
+      }
+
+      return response.json()
+    } catch (error) {
+      // Handle network errors
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        throw new Error("Unable to connect to server. Please ensure the backend is running.")
+      }
+      throw error
     }
-
-    return response.json()
   },
 
   /**

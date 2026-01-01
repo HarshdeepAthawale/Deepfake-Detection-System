@@ -10,7 +10,7 @@ import logger from '../src/utils/logger.js';
 
 const users = [
   {
-    email: 'admin@sentinel.com',
+    email: 'harshdeepathawale27@gmail.com',
     operativeId: 'ADMIN_1',
     role: ROLES.ADMIN,
     metadata: {
@@ -18,30 +18,6 @@ const users = [
       lastName: 'Administrator',
       department: 'IT',
       clearanceLevel: 'TOP_SECRET',
-    },
-  },
-  {
-    email: 'operative@sentinel.com',
-    password: 'operative123',
-    operativeId: 'GHOST_1',
-    role: ROLES.OPERATIVE,
-    metadata: {
-      firstName: 'John',
-      lastName: 'Operative',
-      department: 'Field Operations',
-      clearanceLevel: 'SECRET',
-    },
-  },
-  {
-    email: 'analyst@sentinel.com',
-    password: 'analyst123',
-    operativeId: 'ANALYST_1',
-    role: ROLES.ANALYST,
-    metadata: {
-      firstName: 'Jane',
-      lastName: 'Analyst',
-      department: 'Intelligence',
-      clearanceLevel: 'SECRET',
     },
   },
 ];
@@ -53,7 +29,16 @@ const seedUsers = async () => {
 
     logger.info('Seeding users...');
 
+    // Check if admin already exists
+    const existingAdmin = await User.findOne({ role: ROLES.ADMIN });
+    
     for (const userData of users) {
+      // Prevent creating multiple admins
+      if (userData.role === ROLES.ADMIN && existingAdmin) {
+        logger.info(`⚠️  Admin already exists. Skipping admin creation: ${userData.email}`);
+        continue;
+      }
+
       // Check if user already exists
       const existingUser = await User.findOne({
         $or: [
@@ -73,15 +58,15 @@ const seedUsers = async () => {
     }
 
     logger.info('✅ User seeding completed!');
-    logger.info('\n📋 Default Users:');
+    logger.info('\n📋 Default Admin User:');
     logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    users.forEach((u) => {
-      logger.info(`Email: ${u.email}`);
-      logger.info(`Password: ${u.password}`);
-      logger.info(`Operative ID: ${u.operativeId}`);
-      logger.info(`Role: ${u.role}`);
+    const adminUser = users.find(u => u.role === ROLES.ADMIN);
+    if (adminUser) {
+      logger.info(`Email: ${adminUser.email}`);
+      logger.info(`Operative ID: ${adminUser.operativeId}`);
+      logger.info(`Role: ${adminUser.role}`);
       logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    });
+    }
 
     process.exit(0);
   } catch (error) {

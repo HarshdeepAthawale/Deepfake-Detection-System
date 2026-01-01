@@ -71,18 +71,25 @@ export const processScan = async (scanId, filePath) => {
     const finalResult = await generateExplanations(compressionAdjusted, perceptionData);
 
     // Update scan with results
+    const updateData = {
+      status: 'COMPLETED',
+      result: finalResult,
+      processingData: {
+        perception: perceptionData,
+        detection: detectionScores,
+        compression: compressionAdjusted,
+        cognitive: finalResult,
+      },
+    };
+
+    // Add GPS coordinates if available
+    if (perceptionData.gpsCoordinates) {
+      updateData.gpsCoordinates = perceptionData.gpsCoordinates;
+    }
+
     const updatedScan = await Scan.findOneAndUpdate(
       { scanId },
-      {
-        status: 'COMPLETED',
-        result: finalResult,
-        processingData: {
-          perception: perceptionData,
-          detection: detectionScores,
-          compression: compressionAdjusted,
-          cognitive: finalResult,
-        },
-      },
+      updateData,
       { new: true }
     );
 

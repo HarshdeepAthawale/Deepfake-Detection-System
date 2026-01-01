@@ -35,7 +35,6 @@ const scanSchema = new mongoose.Schema(
     fileHash: {
       type: String,
       required: true,
-      index: true,
     },
     fileSize: {
       type: Number,
@@ -48,6 +47,14 @@ const scanSchema = new mongoose.Schema(
     },
     mimeType: {
       type: String,
+    },
+    gpsCoordinates: {
+      latitude: {
+        type: Number,
+      },
+      longitude: {
+        type: Number,
+      },
     },
     status: {
       type: String,

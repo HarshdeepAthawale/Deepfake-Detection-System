@@ -9,12 +9,29 @@ import { useRouter } from "next/navigation"
 export function TacticalShell({
   children,
   activeTab = "dashboard",
-}: { children: React.ReactNode; activeTab?: string }) {
+  gpsCoordinates,
+}: { 
+  children: React.ReactNode
+  activeTab?: string
+  gpsCoordinates?: { latitude: number; longitude: number } | null
+}) {
   const { user, logout, isAuthenticated } = useAuth()
   const router = useRouter()
 
   const handleLogout = () => {
     logout()
+  }
+
+  // Format GPS coordinates for display
+  const formatGPS = (coords: { latitude: number; longitude: number } | null | undefined) => {
+    if (!coords) return "NO_GPS_DATA"
+    
+    const lat = coords.latitude
+    const lon = coords.longitude
+    const latDir = lat >= 0 ? "N" : "S"
+    const lonDir = lon >= 0 ? "E" : "W"
+    
+    return `${Math.abs(lat).toFixed(4)}° ${latDir}, ${Math.abs(lon).toFixed(4)}° ${lonDir}`
   }
   return (
     <div className="flex h-screen bg-background text-foreground font-mono uppercase tracking-wider text-xs">
@@ -72,10 +89,11 @@ export function TacticalShell({
           <div className="flex items-center gap-4">
             <div className="hidden lg:flex flex-col text-right">
               <span className="text-[10px] text-muted-foreground">GRID_COORDS</span>
-              <span>40.7128° N, 74.0060° W</span>
-            </div>
-            <div className="bg-primary/5 border border-primary/20 px-3 py-1 rounded-sm text-primary font-bold">
-              LVL_4_CLEARANCE
+              <span className={cn(
+                gpsCoordinates ? "text-primary" : "text-muted-foreground/60"
+              )}>
+                {formatGPS(gpsCoordinates)}
+              </span>
             </div>
           </div>
         </header>

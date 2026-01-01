@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import {
   Camera,
   Upload,
@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils"
 import { apiService, type ScanResult } from "@/lib/api"
 import { useAuth } from "@/contexts/auth-context"
 
-export function MediaScanner() {
+export function MediaScanner({ onScanResult }: { onScanResult?: (result: ScanResult | null) => void }) {
   const { isAuthenticated } = useAuth()
   const [scanning, setScanning] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -28,7 +28,19 @@ export function MediaScanner() {
   const [result, setResult] = useState<ScanResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [currentScanId, setCurrentScanId] = useState<string | null>(null)
+  const [mediaPreview, setMediaPreview] = useState<string | null>(null)
+  const [mediaType, setMediaType] = useState<"image" | "video" | "audio" | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+
+  // Cleanup object URL on unmount
+  useEffect(() => {
+    return () => {
+      if (mediaPreview) {
+        URL.revokeObjectURL(mediaPreview)
+      }
+    }
+  }, [mediaPreview])
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -37,6 +49,21 @@ export function MediaScanner() {
     if (!isAuthenticated) {
       setError("Please log in to upload files")
       return
+    }
+
+    // Create preview URL for the file
+    const previewUrl = URL.createObjectURL(file)
+    setMediaPreview(previewUrl)
+    
+    // Determine media type
+    if (file.type.startsWith('image/')) {
+      setMediaType('image')
+    } else if (file.type.startsWith('video/')) {
+      setMediaType('video')
+    } else if (file.type.startsWith('audio/')) {
+      setMediaType('audio')
+    } else {
+      setMediaType(null)
     }
 
     await uploadAndScan(file)
@@ -83,6 +110,9 @@ export function MediaScanner() {
       setStatus("complete")
       setScanning(false)
       setResult(finalResult)
+      if (onScanResult) {
+        onScanResult(finalResult)
+      }
     } catch (err) {
       console.error("Scan error:", err)
       setError(err instanceof Error ? err.message : "Scan failed")
@@ -104,6 +134,14 @@ export function MediaScanner() {
     setResult(null)
     setError(null)
     setCurrentScanId(null)
+    if (mediaPreview) {
+      URL.revokeObjectURL(mediaPreview)
+      setMediaPreview(null)
+    }
+    setMediaType(null)
+    if (onScanResult) {
+      onScanResult(null)
+    }
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
@@ -120,35 +158,59 @@ export function MediaScanner() {
       {/* Primary Scanner View */}
       <div className="xl:col-span-3 space-y-6">
         <div className="relative aspect-video bg-black border border-primary/20 rounded-sm overflow-hidden group">
-          {/* Mock Camera View */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            {status === "idle" ? (
+          {/* Corner Brackets */}
+          <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-white/40 z-10" />
+          <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-white/40 z-10" />
+          <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-white/40 z-10" />
+          <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-white/40 z-10" />
+
+          {/* Media Display */}
+          {mediaPreview && mediaType === "image" && (
+            <img 
+              src={mediaPreview} 
+              alt="Media preview" 
+              className="w-full h-full object-contain"
+            />
+          )}
+          
+          {mediaPreview && mediaType === "video" && (
+            <video 
+              ref={videoRef}
+              src={mediaPreview} 
+              className="w-full h-full object-contain"
+              controls
+              autoPlay
+              loop
+            />
+          )}
+
+          {mediaPreview && mediaType === "audio" && (
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="text-center space-y-4">
+                <Zap size={48} className="mx-auto text-primary/40" />
+                <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">AUDIO_FILE_DETECTED</p>
+                <audio src={mediaPreview} controls className="w-full max-w-md" />
+              </div>
+            </div>
+          )}
+
+          {/* Default State */}
+          {!mediaPreview && (
+            <div className="absolute inset-0 flex items-center justify-center">
               <div className="flex flex-col items-center gap-4 text-muted-foreground">
                 <Camera size={48} className="opacity-20" />
                 <p className="font-mono text-[10px] uppercase tracking-widest">Awaiting_Input_Signal...</p>
               </div>
-            ) : (
-              <div className="w-full h-full relative">
-                <div className="absolute inset-0 bg-primary/5 mix-blend-overlay" />
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)]" />
+            </div>
+          )}
 
-                {/* Simulated Target Frame */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border border-primary/40 rounded-sm">
-                  <div className="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-primary" />
-                  <div className="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-primary" />
-                  <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-primary" />
-                  <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-primary" />
-
-                  {/* Facial Scan Lines */}
-                  {status === "analyzing" && (
-                    <div className="absolute inset-0 overflow-hidden">
-                      <div className="w-full h-[2px] bg-primary/60 shadow-[0_0_15px_rgba(var(--primary),0.5)] animate-scan" />
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          {/* Overlay Effects */}
+          {mediaPreview && status !== "idle" && (
+            <>
+              <div className="absolute inset-0 bg-primary/5 mix-blend-overlay pointer-events-none" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.2)_100%)] pointer-events-none" />
+            </>
+          )}
 
           {/* HUD Overlay Components */}
           <div className="absolute top-4 left-4 space-y-2">

@@ -15,6 +15,8 @@ interface AuthContextType {
   token: string | null
   loading: boolean
   login: (email: string, password: string) => Promise<void>
+  signup: (email: string, password: string) => Promise<void>
+  loginWithGoogle: (idToken: string) => Promise<void>
   logout: () => void
   isAuthenticated: boolean
 }
@@ -61,8 +63,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || "Login failed")
+        let errorMessage = "Login failed"
+        try {
+          const errorText = await response.text()
+          try {
+            const error = JSON.parse(errorText)
+            errorMessage = error.message || error.error || "Login failed"
+          } catch {
+            // If not JSON, use the text as error message
+            errorMessage = errorText || `Login failed with status ${response.status}`
+          }
+        } catch {
+          errorMessage = `Login failed with status ${response.status}`
+        }
+        throw new Error(errorMessage)
       }
 
       const data = await response.json()
@@ -84,6 +98,121 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error("Login error:", error)
+      // Handle network errors
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        throw new Error("Unable to connect to server. Please ensure the backend is running.")
+      }
+      throw error
+    }
+  }, [router])
+
+  const loginWithGoogle = useCallback(async (idToken: string) => {
+    try {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
+      
+      const response = await fetch(`${API_BASE_URL}/auth/google`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ idToken }),
+      })
+
+      if (!response.ok) {
+        let errorMessage = "Google authentication failed"
+        try {
+          const errorText = await response.text()
+          try {
+            const error = JSON.parse(errorText)
+            errorMessage = error.message || error.error || "Google authentication failed"
+          } catch {
+            errorMessage = errorText || `Google authentication failed with status ${response.status}`
+          }
+        } catch {
+          errorMessage = `Google authentication failed with status ${response.status}`
+        }
+        throw new Error(errorMessage)
+      }
+
+      const data = await response.json()
+
+      if (data.success && data.data) {
+        const { user: userData, token: authToken } = data.data
+        
+        // Store token and user
+        localStorage.setItem(TOKEN_KEY, authToken)
+        localStorage.setItem(USER_KEY, JSON.stringify(userData))
+        
+        setToken(authToken)
+        setUser(userData)
+        
+        // Redirect to dashboard
+        router.push("/dashboard")
+      } else {
+        throw new Error("Invalid response format")
+      }
+    } catch (error) {
+      console.error("Google login error:", error)
+      // Handle network errors
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        throw new Error("Unable to connect to server. Please ensure the backend is running.")
+      }
+      throw error
+    }
+  }, [router])
+
+  const signup = useCallback(async (email: string, password: string) => {
+    try {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
+      
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      })
+
+      if (!response.ok) {
+        let errorMessage = "Signup failed"
+        try {
+          const errorText = await response.text()
+          try {
+            const error = JSON.parse(errorText)
+            errorMessage = error.message || error.error || "Signup failed"
+          } catch {
+            // If not JSON, use the text as error message
+            errorMessage = errorText || `Signup failed with status ${response.status}`
+          }
+        } catch {
+          errorMessage = `Signup failed with status ${response.status}`
+        }
+        throw new Error(errorMessage)
+      }
+
+      const data = await response.json()
+
+      if (data.success && data.data) {
+        const { user: userData, token: authToken } = data.data
+        
+        // Store token and user
+        localStorage.setItem(TOKEN_KEY, authToken)
+        localStorage.setItem(USER_KEY, JSON.stringify(userData))
+        
+        setToken(authToken)
+        setUser(userData)
+        
+        // Redirect to dashboard
+        router.push("/dashboard")
+      } else {
+        throw new Error("Invalid response format")
+      }
+    } catch (error) {
+      console.error("Signup error:", error)
+      // Handle network errors
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        throw new Error("Unable to connect to server. Please ensure the backend is running.")
+      }
       throw error
     }
   }, [router])
@@ -101,6 +230,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     token,
     loading,
     login,
+    signup,
+    loginWithGoogle,
     logout,
     isAuthenticated: !!token && !!user,
   }

@@ -19,12 +19,8 @@ export const connectDB = async () => {
   }
 
   try {
-    const options = {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    };
-
-    await mongoose.connect(config.database.uri, options);
+    // Modern Mongoose doesn't need these options (removed deprecated options)
+    await mongoose.connect(config.database.uri);
     isConnected = true;
     logger.info(`✅ MongoDB connected: ${config.database.name}`);
 

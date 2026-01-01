@@ -15,12 +15,23 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      index: true,
     },
     password: {
       type: String,
-      required: true,
+      required: function() {
+        return !this.googleId; // Password required only if not Google user
+      },
       select: false, // Don't return password by default
+    },
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true, // Allows multiple null values
+    },
+    authProvider: {
+      type: String,
+      enum: ['local', 'google'],
+      default: 'local',
     },
     operativeId: {
       type: String,
@@ -28,7 +39,6 @@ const userSchema = new mongoose.Schema(
       unique: true,
       uppercase: true,
       trim: true,
-      index: true,
     },
     role: {
       type: String,
@@ -60,9 +70,34 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// Hash password before saving
+// Validate only one admin exists
 userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
+  // Only check if this is a new admin or role is being changed to admin
+  if (this.role === ROLES.ADMIN) {
+    try {
+      const UserModel = this.constructor;
+      // Check if another admin already exists
+      const existingAdmin = await UserModel.findOne({ 
+        role: ROLES.ADMIN,
+        _id: { $ne: this._id } // Exclude current user if updating
+      });
+      
+      if (existingAdmin) {
+        return next(new Error('Only one admin user is allowed in the system'));
+      }
+    } catch (error) {
+      return next(error);
+    }
+  }
+  next();
+});
+
+// Hash password before saving (only for local auth)
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password') || !this.password) return next();
+  
+  // Skip password hashing for Google OAuth users
+  if (this.authProvider === 'google') return next();
   
   try {
     const salt = await bcrypt.genSalt(12);
@@ -82,6 +117,10 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
 userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password;
+  // Convert _id to id for frontend compatibility
+  obj.id = obj._id.toString();
+  delete obj._id;
+  delete obj.__v;
   return obj;
 };
 
@@ -89,6 +128,7 @@ userSchema.methods.toJSON = function () {
 userSchema.index({ email: 1 });
 userSchema.index({ operativeId: 1 });
 userSchema.index({ role: 1 });
+userSchema.index({ googleId: 1 });
 
 const User = mongoose.model('User', userSchema);
 

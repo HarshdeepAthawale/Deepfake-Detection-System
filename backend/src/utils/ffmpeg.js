@@ -7,6 +7,7 @@ import ffmpeg from 'fluent-ffmpeg';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs';
+import exifr from 'exifr';
 import config from '../config/env.js';
 import logger from './logger.js';
 
@@ -155,10 +156,46 @@ export const normalizeMedia = async (inputPath, outputPath) => {
   });
 };
 
+/**
+ * Extract GPS coordinates from image file
+ * @param {string} inputPath - Path to image file
+ * @returns {Promise<Object|null>} GPS coordinates {latitude, longitude} or null if not found
+ */
+export const extractGPSFromImage = async (inputPath) => {
+  try {
+    // Check if file exists
+    if (!fs.existsSync(inputPath)) {
+      logger.warn(`File not found for GPS extraction: ${inputPath}`);
+      return null;
+    }
+
+    // Extract EXIF data including GPS
+    const exifData = await exifr.parse(inputPath, {
+      gps: true,
+      pick: ['latitude', 'longitude'],
+    });
+
+    if (exifData && exifData.latitude !== undefined && exifData.longitude !== undefined) {
+      logger.info(`GPS coordinates extracted: ${exifData.latitude}, ${exifData.longitude}`);
+      return {
+        latitude: exifData.latitude,
+        longitude: exifData.longitude,
+      };
+    }
+
+    logger.debug(`No GPS coordinates found in image: ${inputPath}`);
+    return null;
+  } catch (error) {
+    logger.warn(`Failed to extract GPS coordinates from ${inputPath}: ${error.message}`);
+    return null;
+  }
+};
+
 export default {
   extractFrames,
   extractAudio,
   getMediaMetadata,
   normalizeMedia,
+  extractGPSFromImage,
 };
 

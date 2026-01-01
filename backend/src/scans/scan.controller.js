@@ -165,6 +165,7 @@ export const getScan = async (req, res) => {
       status: scan.status,
       mediaType: scan.mediaType,
       fileName: scan.fileName,
+      gpsCoordinates: scan.gpsCoordinates || null,
     };
 
     res.status(200).json({
@@ -249,8 +250,6 @@ export const deleteScanHandler = async (req, res) => {
     });
   }
 };
-
-export { upload };
 
 export default {
   uploadScan,

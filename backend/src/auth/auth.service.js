@@ -5,6 +5,7 @@
 
 import jwt from 'jsonwebtoken';
 import User from '../users/user.model.js';
+import { ROLES } from '../security/rbac.js';
 import config from '../config/env.js';
 import logger from '../utils/logger.js';
 
@@ -88,6 +89,60 @@ export const authenticateUser = async (email, password) => {
 };
 
 /**
+ * Register a new user
+ * @param {string} email - User email
+ * @param {string} password - User password
+ * @param {string} operativeId - Optional operative ID (auto-generated if not provided)
+ * @returns {Object} User object and token
+ */
+export const registerUser = async (email, password, operativeId = null) => {
+  try {
+    // Check if user already exists
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      throw new Error('User with this email already exists');
+    }
+
+    // Generate operative ID if not provided
+    if (!operativeId) {
+      const timestamp = Date.now().toString(36).toUpperCase();
+      const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+      operativeId = `USER_${timestamp}_${random}`;
+    } else {
+      // Check if operative ID already exists
+      const existingOperativeId = await User.findOne({ operativeId: operativeId.toUpperCase() });
+      if (existingOperativeId) {
+        throw new Error('Operative ID already exists');
+      }
+    }
+
+    // Create new user
+    const user = new User({
+      email: email.toLowerCase(),
+      password,
+      operativeId: operativeId.toUpperCase(),
+      role: ROLES.OPERATIVE, // Default role
+      isActive: true,
+    });
+
+    await user.save();
+
+    // Generate token
+    const token = generateToken(user);
+
+    logger.info(`User registered: ${user.operativeId} (${user.email})`);
+
+    return {
+      user: user.toJSON(),
+      token,
+    };
+  } catch (error) {
+    logger.error('Registration error:', error);
+    throw error;
+  }
+};
+
+/**
  * Get user by ID
  * @param {string} userId - User ID
  * @returns {Object} User object
@@ -109,6 +164,7 @@ export default {
   generateToken,
   verifyToken,
   authenticateUser,
+  registerUser,
   getUserById,
 };
 

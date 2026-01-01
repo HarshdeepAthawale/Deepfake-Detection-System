@@ -7,7 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { generateFileHash } from '../security/encryption.js';
-import { extractFrames, extractAudio, getMediaMetadata, normalizeMedia } from '../utils/ffmpeg.js';
+import { extractFrames, extractAudio, getMediaMetadata, normalizeMedia, extractGPSFromImage } from '../utils/ffmpeg.js';
 import logger from '../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -71,7 +71,21 @@ export const processMedia = async (filePath, scanId) => {
       extractedFrames: [],
       extractedAudio: null,
       normalizedPath: null,
+      gpsCoordinates: null,
     };
+
+    // Extract GPS coordinates if image
+    if (isImage) {
+      try {
+        const gpsData = await extractGPSFromImage(filePath);
+        if (gpsData) {
+          perceptionResults.gpsCoordinates = gpsData;
+          logger.info(`[PERCEPTION_AGENT] GPS coordinates extracted: ${gpsData.latitude}, ${gpsData.longitude}`);
+        }
+      } catch (error) {
+        logger.warn(`[PERCEPTION_AGENT] GPS extraction failed: ${error.message}`);
+      }
+    }
 
     // Extract frames if video
     if (isVideo) {
