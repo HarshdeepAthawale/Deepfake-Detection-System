@@ -112,23 +112,6 @@ export default function DashboardPage() {
                 )}
               </div>
             </div>
-
-            <div className="bg-card/30 border border-primary/10 rounded-sm p-4 backdrop-blur-sm">
-              <h2 className="text-sm font-bold text-primary mb-4 border-b border-primary/10 pb-2">SYSTEM_STATUS</h2>
-              <div className="h-48 flex flex-col items-center justify-center text-muted-foreground text-xs font-mono space-y-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-success rounded-full animate-pulse" />
-                  <span>Backend: {isAuthenticated ? "CONNECTED" : "DISCONNECTED"}</span>
-                </div>
-                {user && (
-                  <div className="text-center">
-                    <div className="text-[10px] text-muted-foreground mb-1">OPERATIVE</div>
-                    <div className="text-primary font-bold">{user.operativeId}</div>
-                    <div className="text-[9px] text-muted-foreground mt-1">{user.role.toUpperCase()}</div>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
 
           {/* Sidebar Widgets */}
@@ -221,17 +204,17 @@ function LogItem({
   }
 
   return (
-    <div className="flex items-center gap-4 text-[11px] font-mono p-2 hover:bg-primary/5 border border-transparent hover:border-primary/10 transition-all rounded-sm">
-      <span className="text-muted-foreground w-16">{time}</span>
-      <span className="text-primary w-20 font-bold">{id}</span>
-      <span className="text-muted-foreground w-16">{type}</span>
-      <div className={cn("px-2 py-0.5 border rounded-sm text-[9px] font-black w-24 text-center", resultColors[result])}>
+    <div className="flex items-center gap-3 text-[11px] font-mono p-2 hover:bg-primary/5 border border-transparent hover:border-primary/10 transition-all rounded-sm">
+      <span className="text-muted-foreground w-20 shrink-0">{time}</span>
+      <span className="text-primary w-32 shrink-0 font-bold truncate">{id}</span>
+      <span className="text-muted-foreground w-16 shrink-0">{type}</span>
+      <div className={cn("px-2 py-0.5 border rounded-sm text-[9px] font-black shrink-0 text-center", resultColors[result])}>
         {result}
       </div>
-      <div className="flex-1 bg-primary/5 h-1 relative overflow-hidden rounded-full">
+      <div className="flex-1 bg-primary/5 h-1 relative overflow-hidden rounded-full min-w-[60px]">
         <div className="absolute inset-y-0 left-0 bg-primary/40" style={{ width: `${score}%` }} />
       </div>
-      <span className="text-muted-foreground w-20 text-right">{operative}</span>
+      <span className="text-muted-foreground w-24 shrink-0 text-right truncate">{operative}</span>
     </div>
   )
 }
