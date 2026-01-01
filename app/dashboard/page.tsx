@@ -200,7 +200,7 @@ function LogItem({
   const resultColors = {
     AUTHENTIC: "text-success bg-success/10 border-success/20",
     DEEPFAKE: "text-destructive bg-destructive/10 border-destructive/20",
-    SUSPICIOUS: "text-warning bg-warning/10 border-warning/20",
+    SUSPICIOUS: "text-destructive bg-destructive/10 border-destructive/20",
   }
 
   return (

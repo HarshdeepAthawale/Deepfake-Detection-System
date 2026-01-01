@@ -281,7 +281,7 @@ function VerdictBadge({
 }) {
   const colors = {
     deepfake: "text-destructive bg-destructive/10 border-destructive/20",
-    suspicious: "text-warning bg-warning/10 border-warning/20",
+    suspicious: "text-destructive bg-destructive/10 border-destructive/20",
     authentic: "text-success bg-success/10 border-success/20",
   }
 

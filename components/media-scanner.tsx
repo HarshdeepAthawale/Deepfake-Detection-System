@@ -349,13 +349,13 @@ export function MediaScanner({ onScanResult }: { onScanResult?: (result: ScanRes
               <div
                 className={cn(
                   "p-4 border rounded-sm text-center space-y-2 animate-in fade-in zoom-in duration-500",
-                  result.verdict.includes("DEEPFAKE")
+                  result.verdict.includes("DEEPFAKE") || result.verdict.includes("SUSPICIOUS")
                     ? "bg-destructive/10 border-destructive/20 text-destructive"
                     : "bg-success/10 border-success/20 text-success",
                 )}
               >
                 <div className="mx-auto w-10 h-10 border border-current flex items-center justify-center rounded-sm rotate-45 mb-4">
-                  {result.verdict.includes("DEEPFAKE") ? (
+                  {result.verdict.includes("DEEPFAKE") || result.verdict.includes("SUSPICIOUS") ? (
                     <ShieldAlert className="-rotate-45" />
                   ) : (
                     <ShieldCheck className="-rotate-45" />
