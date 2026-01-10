@@ -48,8 +48,13 @@ export const generateExplanations = async (detectionResults, perceptionData) => 
       explanations.push('Potential AI-generated content signatures detected');
     }
 
+    // Temporal consistency: Higher = more consistent (authentic), Lower = inconsistent (suspicious)
+    // Flag when consistency is low (< 60), indicating temporal inconsistencies
     if (temporalConsistency > 0 && temporalConsistency < 60) {
       explanations.push('Temporal inconsistencies across video frames');
+    } else if (temporalConsistency >= 90 && perceptionData.mediaType === 'VIDEO') {
+      // High temporal consistency is a positive indicator (authentic)
+      explanations.push('High temporal consistency observed across video frames');
     }
 
     // Compression artifacts

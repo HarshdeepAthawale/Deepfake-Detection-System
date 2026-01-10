@@ -20,14 +20,13 @@ export const detectDeepfake = async (perceptionData) => {
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
     // Deterministic + random logic for realistic results
-    const hash = perceptionData.hash;
+    const hash = perceptionData.hash || '';
     const mediaType = perceptionData.mediaType;
     
     // Use hash to create deterministic but varied results
-    const hashSeed = parseInt(hash.slice(7, 15), 16); // Use part of hash as seed
-    
-    // Generate scores based on hash (deterministic but appears random)
-    const baseScore = (hashSeed % 100);
+    // Extract part of hash after 'sha256:' prefix (skip first 7 chars, take next 8)
+    const hashSubstring = hash.length >= 15 ? hash.slice(7, 15) : hash.slice(-8) || '0';
+    const hashSeed = parseInt(hashSubstring, 16) || 12345; // Fallback seed if parsing fails
     
     // Video-specific detection
     let videoScore = 0;
@@ -55,16 +54,24 @@ export const detectDeepfake = async (perceptionData) => {
     const ganFingerprint = 40 + ((hashSeed * 2) % 60); // Range: 40-100
     
     // Temporal consistency (for videos)
+    // Higher value = more consistent = lower risk (authentic)
+    // Range: 50-100 where 100 = perfectly consistent, 50 = inconsistent
     const temporalConsistency = perceptionData.mediaType === 'VIDEO'
       ? 50 + ((hashSeed * 5) % 50) // Range: 50-100
-      : 0;
+      : 100; // Non-video media defaults to high consistency
+
+    // Convert to temporal inconsistency for risk calculation
+    // Higher consistency (100) = 0 inconsistency (low risk)
+    // Lower consistency (50) = 50 inconsistency (higher risk)
+    const temporalInconsistency = 100 - temporalConsistency;
 
     // Calculate overall risk score
+    // Higher scores = higher risk (more likely to be deepfake)
     const riskScore = Math.round(
       (videoScore * 0.4) +
       (audioScore * 0.3) +
       (ganFingerprint * 0.2) +
-      (temporalConsistency * 0.1)
+      (temporalInconsistency * 0.1)
     );
 
     const detectionResults = {
