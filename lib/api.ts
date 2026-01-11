@@ -718,6 +718,213 @@ export const apiService = {
   }> {
     return authenticatedRequest(`/admin/ml/config`)
   },
+
+  /**
+   * Analytics: Get analytics overview
+   */
+  async getAnalyticsOverview(): Promise<{
+    success: boolean
+    data: {
+      scans: {
+        total: number
+        last24h: number
+        lastWeek: number
+        lastMonth: number
+      }
+      users: {
+        total: number
+        last24h: number
+        lastWeek: number
+      }
+      verdicts: {
+        DEEPFAKE: number
+        SUSPICIOUS: number
+        AUTHENTIC: number
+      }
+      mediaTypes: Record<string, number>
+      averageRiskScore: number
+    }
+  }> {
+    return authenticatedRequest(`/admin/analytics/overview`)
+  },
+
+  /**
+   * Analytics: Get scan trends
+   */
+  async getAnalyticsTrends(
+    period: 'daily' | 'weekly' | 'monthly' = 'daily',
+    limit: number = 30
+  ): Promise<{
+    success: boolean
+    data: Array<{
+      date: string
+      scans: number
+      completed: number
+      verdicts: {
+        deepfake: number
+        suspicious: number
+        authentic: number
+      }
+      averageRiskScore: number | null
+    }>
+  }> {
+    return authenticatedRequest(
+      `/admin/analytics/trends?period=${period}&limit=${limit}`
+    )
+  },
+
+  /**
+   * Analytics: Get user activity analytics
+   */
+  async getAnalyticsUsers(): Promise<{
+    success: boolean
+    data: {
+      byRole: Record<
+        string,
+        {
+          total: number
+          active: number
+          inactive: number
+        }
+      >
+      newUsers: {
+        last24h: number
+        lastWeek: number
+        lastMonth: number
+        trend: Array<{
+          date: string
+          count: number
+        }>
+      }
+      topActiveUsers: Array<{
+        userId: string
+        operativeId: string
+        email: string
+        role: string
+        scanCount: number
+        lastScan: string
+      }>
+    }
+  }> {
+    return authenticatedRequest(`/admin/analytics/users`)
+  },
+
+  /**
+   * Analytics: Get scan analytics
+   */
+  async getAnalyticsScans(): Promise<{
+    success: boolean
+    data: {
+      statuses: Record<string, number>
+      verdicts: {
+        DEEPFAKE: number
+        SUSPICIOUS: number
+        AUTHENTIC: number
+      }
+      mediaTypes: Record<string, number>
+      riskScoreDistribution: Record<string, number>
+      averages: {
+        confidence: number
+        riskScore: number
+      }
+    }
+  }> {
+    return authenticatedRequest(`/admin/analytics/scans`)
+  },
+
+  /**
+   * Audit: Get audit logs
+   */
+  async getAuditLogs(params?: {
+    userId?: string
+    operativeId?: string
+    action?: string
+    resourceType?: string
+    resourceId?: string
+    status?: string
+    startDate?: string
+    endDate?: string
+    page?: number
+    limit?: number
+  }): Promise<{
+    success: boolean
+    data: {
+      logs: Array<{
+        _id: string
+        action: string
+        userId?: {
+          email: string
+          operativeId: string
+          role: string
+        }
+        operativeId: string
+        userRole: string
+        resourceType?: string
+        resourceId?: string
+        details: any
+        ipAddress?: string
+        userAgent?: string
+        status: string
+        errorMessage?: string
+        createdAt: string
+        updatedAt: string
+      }>
+      pagination: {
+        page: number
+        limit: number
+        total: number
+        pages: number
+      }
+    }
+  }> {
+    const queryParams = new URLSearchParams()
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, String(value))
+        }
+      })
+    }
+    const query = queryParams.toString()
+    return authenticatedRequest(`/admin/audit${query ? `?${query}` : ''}`)
+  },
+
+  /**
+   * Audit: Export audit logs as CSV
+   */
+  async exportAuditLogs(params?: {
+    userId?: string
+    operativeId?: string
+    action?: string
+    resourceType?: string
+    resourceId?: string
+    status?: string
+    startDate?: string
+    endDate?: string
+  }): Promise<Blob> {
+    const queryParams = new URLSearchParams()
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, String(value))
+        }
+      })
+    }
+    const query = queryParams.toString()
+    const token = getToken()
+    
+    const response = await fetch(`${API_BASE_URL}/admin/audit/export${query ? `?${query}` : ''}`, {
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    })
+    
+    if (!response.ok) {
+      throw new Error("Failed to export audit logs")
+    }
+    
+    return response.blob()
+  },
 }
 
 // Legacy export for backward compatibility

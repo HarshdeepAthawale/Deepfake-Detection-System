@@ -7,6 +7,7 @@ import { authenticateUser, registerUser } from './auth.service.js';
 import { authenticateWithGoogle } from './google-auth.service.js';
 import logger from '../utils/logger.js';
 import config from '../config/env.js';
+import { logAudit } from '../audit/audit.middleware.js';
 
 /**
  * Login endpoint handler
@@ -28,6 +29,14 @@ export const login = async (req, res) => {
     const { user, token } = await authenticateUser(email, password);
 
     logger.info(`Login successful: ${user.operativeId}`);
+
+    // Audit log (set user on req for audit log)
+    req.user = user;
+    await logAudit(req, 'auth.login', {
+      email: user.email,
+      operativeId: user.operativeId,
+      role: user.role,
+    }, 'success');
 
     res.status(200).json({
       success: true,

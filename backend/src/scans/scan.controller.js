@@ -18,10 +18,14 @@ import {
   getScanHistory,
   updateScanTags,
   deleteScan,
+  shareScan,
+  addComment,
+  assignScan,
 } from './scan.service.js';
 import { generateFileHash } from '../security/encryption.js';
 import config from '../config/env.js';
 import logger from '../utils/logger.js';
+import { logAudit } from '../audit/audit.middleware.js';
 // RBAC is handled in routes, not controller
 
 const __filename = fileURLToPath(import.meta.url);
@@ -122,6 +126,15 @@ export const uploadScan = async (req, res) => {
 
     logger.info(`Scan uploaded: ${scanId} by ${user.operativeId}`);
 
+    // Audit log
+    await logAudit(req, 'scan.upload', {
+      scanId,
+      fileName: file.originalname,
+      fileSize: file.size,
+      mediaType,
+      fileHash,
+    }, 'success');
+
     res.status(202).json({
       success: true,
       message: 'File uploaded and processing started',
@@ -218,7 +231,7 @@ export const getScan = async (req, res) => {
     const { id } = req.params;
     const user = req.user;
 
-    const scan = await getScanById(id, user.id);
+    const scan = await getScanById(id, user.id, user.role);
 
     // Format response to match frontend expectations
     const response = {
@@ -401,6 +414,11 @@ export const deleteScanHandler = async (req, res) => {
 
     await deleteScan(id, user.id, user.role);
 
+    // Audit log
+    await logAudit(req, 'scan.delete', {
+      scanId: id,
+    }, 'success');
+
     res.status(200).json({
       success: true,
       message: 'Scan deleted successfully',
@@ -414,6 +432,132 @@ export const deleteScanHandler = async (req, res) => {
   }
 };
 
+/**
+ * Share scan with users
+ * POST /api/scans/:id/share
+ */
+export const shareScanHandler = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userIds } = req.body;
+    const user = req.user;
+
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({
+        error: 'Validation error',
+        message: 'userIds must be a non-empty array',
+      });
+    }
+
+    const scan = await shareScan(id, userIds, user.id, user.role);
+
+    res.status(200).json({
+      success: true,
+      message: 'Scan shared successfully',
+      data: {
+        scanId: scan.scanId,
+        sharedWith: scan.sharedWith,
+      },
+    });
+  } catch (error) {
+    logger.error('Share scan error:', error);
+    if (error.message === 'Scan not found or access denied') {
+      return res.status(404).json({
+        error: 'Scan not found',
+        message: error.message,
+      });
+    }
+    res.status(500).json({
+      error: 'Failed to share scan',
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Add comment to scan
+ * POST /api/scans/:id/comments
+ */
+export const addCommentHandler = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { text } = req.body;
+    const user = req.user;
+
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+      return res.status(400).json({
+        error: 'Validation error',
+        message: 'Comment text is required',
+      });
+    }
+
+    const scan = await addComment(id, text.trim(), user.id, user.operativeId, user.role);
+
+    res.status(200).json({
+      success: true,
+      message: 'Comment added successfully',
+      data: {
+        scanId: scan.scanId,
+        comments: scan.comments,
+      },
+    });
+  } catch (error) {
+    logger.error('Add comment error:', error);
+    if (error.message === 'Scan not found or access denied') {
+      return res.status(404).json({
+        error: 'Scan not found',
+        message: error.message,
+      });
+    }
+    res.status(500).json({
+      error: 'Failed to add comment',
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Assign scan to user
+ * POST /api/scans/:id/assign
+ */
+export const assignScanHandler = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId } = req.body;
+    const user = req.user;
+
+    if (!userId) {
+      return res.status(400).json({
+        error: 'Validation error',
+        message: 'userId is required',
+      });
+    }
+
+    const scan = await assignScan(id, userId, user.id, user.role);
+
+    res.status(200).json({
+      success: true,
+      message: 'Scan assigned successfully',
+      data: {
+        scanId: scan.scanId,
+        assignedTo: scan.assignedTo,
+      },
+    });
+  } catch (error) {
+    logger.error('Assign scan error:', error);
+    if (error.message.includes('Only admins and analysts') || error.message === 'Scan not found or access denied') {
+      return res.status(error.message.includes('Only') ? 403 : 404).json({
+        error: 'Failed to assign scan',
+        message: error.message,
+      });
+    }
+    res.status(500).json({
+      error: 'Failed to assign scan',
+      message: error.message,
+    });
+  }
+};
+
 export default {
   uploadScan,
   batchUploadScan,
@@ -421,6 +565,9 @@ export default {
   getHistory,
   updateTags,
   deleteScanHandler,
+  shareScanHandler,
+  addCommentHandler,
+  assignScanHandler,
   upload,
   uploadMultiple,
 };

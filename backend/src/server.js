@@ -13,6 +13,7 @@ import { initializeSocket, setupSocketHandlers } from './scans/scan.socket.js';
 import { createScanQueue } from './utils/queue.js';
 import { setupScanProcessor } from './scans/scan.processor.js';
 import { startHealthChecks } from './ml/ml-client.js';
+import { initializeEmailService } from './notifications/email.service.js';
 
 const PORT = config.server.port;
 
@@ -53,6 +54,23 @@ const startServer = async () => {
     // Connect to MongoDB
     logger.info('Connecting to database...');
     await connectDB();
+
+    // Initialize cache (optional - gracefully handles if Redis unavailable)
+    try {
+      const { initializeCache } = await import('./utils/cache.js');
+      await initializeCache();
+    } catch (error) {
+      logger.warn('[SERVER] Failed to initialize cache:', error.message);
+      logger.warn('[SERVER] Caching disabled. System will work without cache.');
+    }
+
+    // Initialize email service (optional - gracefully handles if SMTP not configured)
+    try {
+      await initializeEmailService();
+    } catch (error) {
+      logger.warn('[SERVER] Failed to initialize email service:', error.message);
+      logger.warn('[SERVER] Email notifications disabled. System will work without email.');
+    }
 
     // Initialize scan queue and processor (optional - gracefully handles if Redis unavailable)
     try {

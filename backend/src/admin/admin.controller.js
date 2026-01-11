@@ -8,6 +8,7 @@ import User from '../users/user.model.js';
 import logger from '../utils/logger.js';
 import { getMLServiceStatus, checkMLServiceHealth } from '../ml/ml-client.js';
 import mlConfig from '../config/ml.config.js';
+import { cached, makeKey } from '../utils/cache.js';
 
 /**
  * Get system-wide statistics
@@ -15,8 +16,12 @@ import mlConfig from '../config/ml.config.js';
  */
 export const getAdminStats = async (req, res) => {
   try {
-    // User statistics
-    const totalUsers = await User.countDocuments();
+    // Cache admin stats for 1-5 minutes (using 3 minutes)
+    const cacheKey = makeKey('admin', 'stats');
+    
+    const stats = await cached(cacheKey, async () => {
+      // User statistics
+      const totalUsers = await User.countDocuments();
     const activeUsers = await User.countDocuments({ isActive: true });
     
     // Users by role
@@ -96,9 +101,7 @@ export const getAdminStats = async (req, res) => {
       createdAt: { $gte: oneDayAgo },
     });
 
-    res.status(200).json({
-      success: true,
-      data: {
+      return {
         users: {
           total: totalUsers,
           active: activeUsers,
@@ -124,7 +127,12 @@ export const getAdminStats = async (req, res) => {
           health: 'operational',
           uptime: process.uptime(),
         },
-      },
+      };
+    }, 180); // Cache for 3 minutes
+
+    res.status(200).json({
+      success: true,
+      data: stats,
     });
   } catch (error) {
     logger.error('Get admin stats error:', error);

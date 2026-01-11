@@ -5,6 +5,12 @@
 
 import express from 'express';
 import { getAdminStats, getMLHealth, getMLConfigEndpoint } from './admin.controller.js';
+import {
+  getAnalyticsOverview,
+  getAnalyticsTrends,
+  getAnalyticsUsers,
+  getAnalyticsScans,
+} from './analytics.controller.js';
 import { authenticate } from '../auth/auth.middleware.js';
 import { requirePermission, PERMISSIONS } from '../security/rbac.js';
 
@@ -44,6 +50,54 @@ router.get(
   '/ml/config',
   requirePermission(PERMISSIONS.SYSTEM_ADMIN),
   getMLConfigEndpoint
+);
+
+/**
+ * Analytics routes
+ */
+
+/**
+ * @route   GET /api/admin/analytics/overview
+ * @desc    Get analytics overview
+ * @access  Private (requires system:admin or view:analytics permission)
+ */
+router.get(
+  '/analytics/overview',
+  requirePermission(PERMISSIONS.VIEW_ANALYTICS),
+  getAnalyticsOverview
+);
+
+/**
+ * @route   GET /api/admin/analytics/trends
+ * @desc    Get scan trends
+ * @access  Private (requires system:admin or view:analytics permission)
+ */
+router.get(
+  '/analytics/trends',
+  requirePermission(PERMISSIONS.VIEW_ANALYTICS),
+  getAnalyticsTrends
+);
+
+/**
+ * @route   GET /api/admin/analytics/users
+ * @desc    Get user activity analytics
+ * @access  Private (requires system:admin or view:analytics permission)
+ */
+router.get(
+  '/analytics/users',
+  requirePermission(PERMISSIONS.VIEW_ANALYTICS),
+  getAnalyticsUsers
+);
+
+/**
+ * @route   GET /api/admin/analytics/scans
+ * @desc    Get scan analytics
+ * @access  Private (requires system:admin or view:analytics permission)
+ */
+router.get(
+  '/analytics/scans',
+  requirePermission(PERMISSIONS.VIEW_ANALYTICS),
+  getAnalyticsScans
 );
 
 export default router;

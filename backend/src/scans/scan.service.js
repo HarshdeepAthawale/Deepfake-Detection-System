@@ -13,6 +13,8 @@ import { generateFileHash } from '../security/encryption.js';
 import logger from '../utils/logger.js';
 import { emitScanProgress, emitScanComplete, emitScanFailed, emitScanUpdateToUser } from './scan.socket.js';
 import { createScanQueue, addScanJob } from '../utils/queue.js';
+import { cached, makeKey, invalidate, delPattern } from '../utils/cache.js';
+import { createNotification } from '../notifications/notification.service.js';
 
 /**
  * Generate unique scan ID
@@ -129,6 +131,37 @@ export const processScan = async (scanId, filePath, userId = null) => {
 
     logger.info(`[SCAN_SERVICE] Pipeline complete for scan: ${scanId}. Verdict: ${finalResult.verdict}`);
 
+    // Invalidate cache for this scan and related history
+    const targetUserId = userId || updatedScan.userId.toString();
+    await invalidate([makeKey('scan', `${scanId}:${targetUserId}`)]);
+    await delPattern('scan:history:*'); // Invalidate all history caches
+
+    // Create notification
+    try {
+      const notificationType = finalResult.verdict === 'DEEPFAKE' ? 'deepfake_detected' : 'scan_complete';
+      const priority = finalResult.verdict === 'DEEPFAKE' ? 'critical' : 'medium';
+      
+      await createNotification({
+        userId: updatedScan.userId,
+        type: notificationType,
+        title: finalResult.verdict === 'DEEPFAKE' 
+          ? 'Deepfake Detected!' 
+          : `Scan Complete: ${finalResult.verdict}`,
+        message: `Scan ${scanId} has completed with verdict: ${finalResult.verdict}`,
+        data: {
+          scanId,
+          verdict: finalResult.verdict,
+          confidence: finalResult.confidence,
+          riskScore: finalResult.riskScore,
+          fileName: updatedScan.fileName,
+        },
+        priority,
+      }, true); // Send email notification
+    } catch (notifError) {
+      logger.warn('Failed to create notification:', notifError);
+      // Don't fail scan processing if notification fails
+    }
+
     // Emit completion event
     emitScanComplete(scanId, finalResult);
     if (targetUserId) {
@@ -144,6 +177,27 @@ export const processScan = async (scanId, filePath, userId = null) => {
     return updatedScan.toObject();
   } catch (error) {
     logger.error(`[SCAN_SERVICE] Processing error for scan ${scanId}:`, error);
+
+    // Create failure notification
+    try {
+      const scan = await Scan.findOne({ scanId });
+      if (scan && scan.userId) {
+        await createNotification({
+          userId: scan.userId,
+          type: 'scan_failed',
+          title: 'Scan Processing Failed',
+          message: `Scan ${scanId} failed to process: ${error.message}`,
+          data: {
+            scanId,
+            error: error.message,
+            fileName: scan.fileName,
+          },
+          priority: 'high',
+        }, false); // Don't send email for failures unless user has emailOnAll enabled
+      }
+    } catch (notifError) {
+      logger.warn('Failed to create failure notification:', notifError);
+    }
 
     // Update scan with error
     const scan = await Scan.findOneAndUpdate(
@@ -180,15 +234,33 @@ export const processScan = async (scanId, filePath, userId = null) => {
  * Get scan by ID
  * @param {string} scanId - Scan ID
  * @param {string} userId - User ID (for access control)
+ * @param {string} userRole - User role (optional, for access control)
  * @returns {Promise<Object>} Scan object
  */
-export const getScanById = async (scanId, userId) => {
+export const getScanById = async (scanId, userId, userRole = null) => {
   try {
-    const scan = await Scan.findOne({ scanId, userId });
-    if (!scan) {
-      throw new Error('Scan not found');
-    }
-    return scan.toObject();
+    const cacheKey = makeKey('scan', `${scanId}:${userId}`);
+    
+    return await cached(cacheKey, async () => {
+      const query = { scanId };
+      
+      // Access control: users can see their own scans, shared scans, or all scans if admin/analyst
+      if (userRole === 'admin' || userRole === 'analyst') {
+        // Admins and analysts can see all scans
+      } else {
+        // Regular users can only see their own scans or shared scans
+        query.$or = [
+          { userId },
+          { sharedWith: userId },
+        ];
+      }
+      
+      const scan = await Scan.findOne(query);
+      if (!scan) {
+        throw new Error('Scan not found');
+      }
+      return scan.toObject();
+    }, 300); // Cache for 5 minutes
   } catch (error) {
     logger.error('Get scan error:', error);
     throw error;
@@ -206,11 +278,22 @@ export const getScanById = async (scanId, userId) => {
  */
 export const getScanHistory = async (filters = {}, userId, userRole, page = 1, limit = 20) => {
   try {
-    const query = {};
+    // Create cache key from filters
+    const filterKey = JSON.stringify({ filters, userId, userRole, page, limit });
+    const cacheKey = makeKey('scan:history', Buffer.from(filterKey).toString('base64'));
+    
+    return await cached(cacheKey, async () => {
+      const query = {};
 
     // Role-based filtering
-    if (userRole !== 'admin') {
-      query.userId = userId; // Non-admins only see their own scans
+    if (userRole === 'admin' || userRole === 'analyst') {
+      // Admins and analysts can see all scans
+    } else {
+      // Regular users can only see their own scans or shared scans
+      query.$or = [
+        { userId },
+        { sharedWith: userId },
+      ];
     }
 
     // Full-text search across fileName, explanations, operativeId
@@ -322,15 +405,16 @@ export const getScanHistory = async (filters = {}, userId, userRole, page = 1, l
       Scan.countDocuments(query),
     ]);
 
-    return {
-      scans,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
-    };
+      return {
+        scans,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+        },
+      };
+    }, 180); // Cache for 3 minutes
   } catch (error) {
     logger.error('Get scan history error:', error);
     throw error;
@@ -373,6 +457,11 @@ export const updateScanTags = async (scanId, tags, userId, userRole) => {
     }
 
     logger.info(`Scan tags updated: ${scanId}, tags: ${cleanTags.join(', ')}`);
+    
+    // Invalidate cache
+    await invalidate([makeKey('scan', `${scanId}:${userId}`)]);
+    await delPattern('scan:history:*');
+    
     return scan.toObject();
   } catch (error) {
     logger.error('Update scan tags error:', error);
@@ -400,6 +489,10 @@ export const deleteScan = async (scanId, userId, userRole) => {
     if (!scan) {
       throw new Error('Scan not found or access denied');
     }
+
+    // Invalidate cache
+    await invalidate([makeKey('scan', `${scanId}:${userId}`)]);
+    await delPattern('scan:history:*');
 
     logger.info(`Scan deleted: ${scanId}`);
   } catch (error) {
@@ -511,6 +604,127 @@ export const processBatchUpload = async (files, userId, operativeId, batchId = n
   }
 };
 
+/**
+ * Share scan with users
+ * @param {string} scanId - Scan ID
+ * @param {string[]} userIds - Array of user IDs to share with
+ * @param {string} userId - Current user ID
+ * @param {string} userRole - Current user role
+ * @returns {Promise<Object>} Updated scan
+ */
+export const shareScan = async (scanId, userIds, userId, userRole) => {
+  try {
+    const query = { scanId };
+    
+    // Non-admins can only share their own scans
+    if (userRole !== 'admin') {
+      query.userId = userId;
+    }
+
+    const scan = await Scan.findOneAndUpdate(
+      query,
+      { $addToSet: { sharedWith: { $each: userIds } } },
+      { new: true }
+    );
+
+    if (!scan) {
+      throw new Error('Scan not found or access denied');
+    }
+
+    logger.info(`Scan shared: ${scanId} with ${userIds.length} users`);
+    return scan.toObject();
+  } catch (error) {
+    logger.error('Share scan error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Add comment to scan
+ * @param {string} scanId - Scan ID
+ * @param {string} text - Comment text
+ * @param {string} userId - User ID
+ * @param {string} operativeId - Operative ID
+ * @param {string} userRole - User role
+ * @returns {Promise<Object>} Updated scan
+ */
+export const addComment = async (scanId, text, userId, operativeId, userRole) => {
+  try {
+    const query = { scanId };
+    
+    // Check if user has access to scan
+    if (userRole !== 'admin') {
+      query.$or = [
+        { userId },
+        { sharedWith: userId },
+      ];
+    }
+
+    const scan = await Scan.findOne(query);
+    if (!scan) {
+      throw new Error('Scan not found or access denied');
+    }
+
+    scan.comments.push({
+      userId,
+      operativeId,
+      text,
+      createdAt: new Date(),
+    });
+
+    await scan.save();
+
+    logger.info(`Comment added to scan: ${scanId} by ${operativeId}`);
+    return scan.toObject();
+  } catch (error) {
+    logger.error('Add comment error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Assign scan to user
+ * @param {string} scanId - Scan ID
+ * @param {string} assignToUserId - User ID to assign to
+ * @param {string} userId - Current user ID
+ * @param {string} userRole - Current user role
+ * @returns {Promise<Object>} Updated scan
+ */
+export const assignScan = async (scanId, assignToUserId, userId, userRole) => {
+  try {
+    // Only admins and analysts can assign scans
+    if (userRole !== 'admin' && userRole !== 'analyst') {
+      throw new Error('Only admins and analysts can assign scans');
+    }
+
+    const query = { scanId };
+    
+    // Non-admins can only assign scans they have access to
+    if (userRole !== 'admin') {
+      query.$or = [
+        { userId },
+        { sharedWith: userId },
+      ];
+    }
+
+    const scan = await Scan.findOneAndUpdate(
+      query,
+      { assignedTo: assignToUserId },
+      { new: true }
+    );
+
+    if (!scan) {
+      throw new Error('Scan not found or access denied');
+    }
+
+    logger.info(`Scan assigned: ${scanId} to user ${assignToUserId}`);
+    return scan.toObject();
+  } catch (error) {
+    logger.error('Assign scan error:', error);
+    throw error;
+  }
+};
+
 export default {
   generateScanId,
   generateBatchId,
@@ -521,5 +735,8 @@ export default {
   getScanHistory,
   updateScanTags,
   deleteScan,
+  shareScan,
+  addComment,
+  assignScan,
 };
 

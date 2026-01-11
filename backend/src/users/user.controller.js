@@ -12,6 +12,7 @@ import {
   getUserStats,
 } from './user.service.js';
 import logger from '../utils/logger.js';
+import { logAudit } from '../audit/audit.middleware.js';
 
 /**
  * Get all users with pagination
@@ -92,6 +93,14 @@ export const createUserHandler = async (req, res) => {
 
     const user = await createUser(userData);
 
+    // Audit log
+    await logAudit(req, 'user.create', {
+      userId: user.id,
+      email: user.email,
+      operativeId: user.operativeId,
+      role: user.role,
+    }, 'success');
+
     res.status(201).json({
       success: true,
       message: 'User created successfully',
@@ -123,6 +132,12 @@ export const updateUserHandler = async (req, res) => {
 
     const user = await updateUser(id, userData);
 
+    // Audit log
+    await logAudit(req, 'user.update', {
+      userId: id,
+      changes: userData,
+    }, 'success');
+
     res.status(200).json({
       success: true,
       message: 'User updated successfully',
@@ -152,6 +167,11 @@ export const deleteUserHandler = async (req, res) => {
   try {
     const { id } = req.params;
     await deleteUser(id);
+
+    // Audit log
+    await logAudit(req, 'user.delete', {
+      userId: id,
+    }, 'success');
 
     res.status(200).json({
       success: true,

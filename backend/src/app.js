@@ -16,6 +16,9 @@ import scanRoutes from './scans/scan.routes.js';
 import userRoutes from './users/user.routes.js';
 import adminRoutes from './admin/admin.routes.js';
 import reportRoutes from './reports/report.routes.js';
+import auditRoutes from './audit/audit.routes.js';
+import notificationRoutes from './notifications/notification.routes.js';
+import caseRoutes from './cases/case.routes.js';
 
 const app = express();
 
@@ -94,6 +97,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/scans', scanRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin/audit', auditRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/cases', caseRoutes);
 app.use('/api/reports', reportRoutes);
 
 // 404 handler

@@ -63,6 +63,24 @@ const userSchema = new mongoose.Schema(
         default: 'CONFIDENTIAL',
       },
     },
+    notificationPreferences: {
+      emailEnabled: {
+        type: Boolean,
+        default: true,
+      },
+      emailOnDeepfake: {
+        type: Boolean,
+        default: true,
+      },
+      emailOnAll: {
+        type: Boolean,
+        default: false,
+      },
+      inAppEnabled: {
+        type: Boolean,
+        default: true,
+      },
+    },
   },
   {
     timestamps: true,
