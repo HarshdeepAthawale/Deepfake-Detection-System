@@ -912,18 +912,108 @@ export const apiService = {
     }
     const query = queryParams.toString()
     const token = getToken()
-    
+
     const response = await fetch(`${API_BASE_URL}/admin/audit/export${query ? `?${query}` : ''}`, {
       headers: {
         ...(token && { Authorization: `Bearer ${token}` }),
       },
     })
-    
+
     if (!response.ok) {
       throw new Error("Failed to export audit logs")
     }
-    
+
     return response.blob()
+  },
+
+  /**
+   * Notifications: Get user notifications
+   */
+  async getNotifications(params?: {
+    limit?: number
+    page?: number
+    unreadOnly?: boolean
+  }): Promise<{
+    success: boolean
+    data: {
+      notifications: Array<{
+        _id: string
+        type: string
+        title: string
+        message: string
+        data: any
+        read: boolean
+        readAt?: string
+        priority: string
+        createdAt: string
+      }>
+      pagination?: {
+        page: number
+        limit: number
+        total: number
+        pages: number
+      }
+    }
+  }> {
+    const queryParams = new URLSearchParams()
+    if (params) {
+      if (params.limit) queryParams.append('limit', params.limit.toString())
+      if (params.page) queryParams.append('page', params.page.toString())
+      if (params.unreadOnly) queryParams.append('unreadOnly', params.unreadOnly.toString())
+    }
+    const query = queryParams.toString()
+    return authenticatedRequest(`/notifications${query ? `?${query}` : ''}`)
+  },
+
+  /**
+   * Notifications: Get unread notification count
+   */
+  async getUnreadNotificationCount(): Promise<{
+    success: boolean
+    data: {
+      count: number
+    }
+  }> {
+    return authenticatedRequest(`/notifications/unread/count`)
+  },
+
+  /**
+   * Notifications: Mark notification as read
+   */
+  async markNotificationAsRead(notificationId: string): Promise<{
+    success: boolean
+    message: string
+  }> {
+    return authenticatedRequest(`/notifications/${notificationId}/read`, {
+      method: "PATCH",
+    })
+  },
+
+  /**
+   * Notifications: Mark all notifications as read
+   */
+  async markAllNotificationsAsRead(): Promise<{
+    success: boolean
+    message: string
+    data: {
+      modifiedCount: number
+    }
+  }> {
+    return authenticatedRequest(`/notifications/read-all`, {
+      method: "PATCH",
+    })
+  },
+
+  /**
+   * Notifications: Delete notification
+   */
+  async deleteNotification(notificationId: string): Promise<{
+    success: boolean
+    message: string
+  }> {
+    return authenticatedRequest(`/notifications/${notificationId}`, {
+      method: "DELETE",
+    })
   },
 }
 

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { TacticalShell } from "@/components/tactical-shell"
 import { AdminProtectedRoute } from "@/components/admin-protected-route"
 import { apiService } from "@/lib/api"
-import { Users, Activity, ShieldAlert, Zap, TrendingUp, AlertTriangle } from "lucide-react"
+import { Users, Activity, ShieldAlert, Zap, TrendingUp, AlertTriangle, Brain } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 

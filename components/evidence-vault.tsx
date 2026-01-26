@@ -18,21 +18,7 @@ export function EvidenceVault() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
-  const [filters, setFilters] = useState<{
-    search?: string
-    status?: string
-    mediaType?: string
-    verdict?: string
-    startDate?: string
-    endDate?: string
-    tags?: string[]
-    minConfidence?: number
-    maxConfidence?: number
-    minRiskScore?: number
-    maxRiskScore?: number
-    sortBy?: "date" | "confidence" | "riskScore" | "fileName"
-    sortOrder?: "asc" | "desc"
-  }>({})
+  const [filters, setFilters] = useState<ScanFilters>({})
   const [showFilters, setShowFilters] = useState(false)
 
   const loadScans = async () => {
@@ -45,12 +31,12 @@ export function EvidenceVault() {
       setLoading(true)
       setError(null)
       // Include search query in filters for backend full-text search
-      const searchFilters = {
+      const searchFilters: ScanFilters = {
         ...filters,
         search: search || undefined,
       }
       const response = await apiService.getScanHistory(page, 20, searchFilters)
-      
+
       if (response.success) {
         setScans(response.data || [])
         if (response.pagination) {
@@ -97,7 +83,7 @@ export function EvidenceVault() {
 
   const handleDelete = async (scanId: string) => {
     if (!confirm("Are you sure you want to delete this scan?")) return
-    
+
     try {
       await apiService.deleteScan(scanId)
       loadScans() // Reload the list
@@ -138,16 +124,16 @@ export function EvidenceVault() {
           </div>
           <div className="flex gap-2">
             <ExportMenu filters={filters as ScanFilters} bulkExport={true} />
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="border-primary/20 bg-transparent text-primary text-[10px] font-bold h-9"
               onClick={() => setShowFilters(!showFilters)}
             >
               <Filter size={14} className="mr-2" />
               {showFilters ? "HIDE_FILTERS" : "SHOW_FILTERS"}
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="border-primary/20 bg-transparent text-primary text-[10px] font-bold h-9"
               onClick={() => {
                 setSearch("")
@@ -157,8 +143,8 @@ export function EvidenceVault() {
             >
               CLEAR
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="border-primary/20 bg-transparent text-primary text-[10px] font-bold h-9"
               onClick={loadScans}
               disabled={loading}
@@ -179,7 +165,7 @@ export function EvidenceVault() {
                 <select
                   className="w-full bg-background/50 border border-primary/20 rounded px-3 py-2 text-[11px] font-mono"
                   value={filters.status || ""}
-                  onChange={(e) => setFilters({ ...filters, status: e.target.value || undefined })}
+                  onChange={(e) => setFilters({ ...filters, status: (e.target.value || undefined) as ScanFilters['status'] })}
                 >
                   <option value="">ALL</option>
                   <option value="PENDING">PENDING</option>
@@ -195,7 +181,7 @@ export function EvidenceVault() {
                 <select
                   className="w-full bg-background/50 border border-primary/20 rounded px-3 py-2 text-[11px] font-mono"
                   value={filters.mediaType || ""}
-                  onChange={(e) => setFilters({ ...filters, mediaType: e.target.value || undefined })}
+                  onChange={(e) => setFilters({ ...filters, mediaType: (e.target.value || undefined) as ScanFilters['mediaType'] })}
                 >
                   <option value="">ALL</option>
                   <option value="VIDEO">VIDEO</option>
@@ -210,7 +196,7 @@ export function EvidenceVault() {
                 <select
                   className="w-full bg-background/50 border border-primary/20 rounded px-3 py-2 text-[11px] font-mono"
                   value={filters.verdict || ""}
-                  onChange={(e) => setFilters({ ...filters, verdict: e.target.value || undefined })}
+                  onChange={(e) => setFilters({ ...filters, verdict: (e.target.value || undefined) as ScanFilters['verdict'] })}
                 >
                   <option value="">ALL</option>
                   <option value="DEEPFAKE">DEEPFAKE</option>
@@ -297,8 +283,8 @@ export function EvidenceVault() {
           <div className="col-span-1">TYPE</div>
           <div className="col-span-2 text-center">VERDICT</div>
           <div className="col-span-1 text-center">SCORE</div>
-          <div className="col-span-3">SHA256_HASH</div>
-          <div className="col-span-1">AGENT</div>
+          <div className="col-span-2">SHA256_HASH</div>
+          <div className="col-span-2">AGENT</div>
           <div className="col-span-1 text-right">ACTIONS</div>
         </div>
 
@@ -339,19 +325,19 @@ export function EvidenceVault() {
                   </div>
                 </div>
                 <div className="col-span-1 text-center font-bold">{item.score}%</div>
-                <div className="col-span-3 text-muted-foreground truncate font-mono text-[10px]">{item.hash}</div>
-                <div className="col-span-1 text-muted-foreground uppercase">{item.operative}</div>
+                <div className="col-span-2 text-muted-foreground truncate font-mono text-[10px]">{item.hash}</div>
+                <div className="col-span-2 text-muted-foreground uppercase">{item.operative}</div>
                 <div className="col-span-1 flex justify-end gap-2">
                   <ExportMenu scanId={item.id} />
-                  <button 
-                    className="text-primary hover:text-white p-1 transition-colors" 
+                  <button
+                    className="text-primary hover:text-white p-1 transition-colors"
                     title="View Full Report"
                     onClick={() => handleViewDetails(item.id)}
                   >
                     <ExternalLink size={16} />
                   </button>
-                  <button 
-                    className="text-primary hover:text-destructive p-1 transition-colors" 
+                  <button
+                    className="text-primary hover:text-destructive p-1 transition-colors"
                     title="Delete Scan"
                     onClick={() => handleDelete(item.id)}
                   >
@@ -413,7 +399,7 @@ export function EvidenceVault() {
         </div>
 
         <div className="flex gap-4">
-          <Button 
+          <Button
             className="bg-primary/20 hover:bg-primary/30 border border-primary/40 text-primary text-[10px] font-bold px-6 py-4 uppercase tracking-[0.2em] rounded-sm"
             onClick={() => {
               const dataStr = JSON.stringify(scans, null, 2)

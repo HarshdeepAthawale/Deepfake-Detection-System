@@ -34,7 +34,7 @@ export function MediaScanner({ onScanResult }: { onScanResult?: (result: ScanRes
   const [mediaType, setMediaType] = useState<"image" | "video" | "audio" | null>(null)
   const [batchMode, setBatchMode] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
-  const [batchResults, setBatchResults] = useState<Array<{ fileName: string; scanId?: string; status: string; error?: string }>>([])
+  const [batchResults, setBatchResults] = useState<Array<{ fileName: string; scanId?: string; status?: string; error?: string; mediaType?: string }>>([])
   const [batchId, setBatchId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)

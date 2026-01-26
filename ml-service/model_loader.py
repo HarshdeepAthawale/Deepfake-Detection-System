@@ -44,10 +44,9 @@ def load_model(model_path=None):
     try:
         # Determine model path
         if model_path is None:
-            # Default path: look for model in parent directory
+            # Default path: look for model in current directory (ml-service/efficientnet_b0_ffpp_c23)
             current_dir = os.path.dirname(os.path.abspath(__file__))
-            project_root = os.path.dirname(current_dir)
-            model_path = os.path.join(project_root, 'efficientnet_b0_ffpp_c23')
+            model_path = os.path.join(current_dir, 'efficientnet_b0_ffpp_c23')
         
         # Validate model path exists
         if not os.path.exists(model_path):
