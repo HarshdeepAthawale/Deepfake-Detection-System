@@ -123,28 +123,27 @@ export const analyzeCompression = async (perceptionData, detectionScores) => {
       ...codecAnalysis.codecFindings,
     ];
 
-    // Calculate compression impact on risk score
-    let compressionImpact = 0;
+    // Calculate compression impact
+    // Low quality makes us less confident, but shouldn't necessarily increase risk
+    // unless there are specific suspicious codec findings.
 
-    // Low quality increases suspicion (harder to detect deepfakes in low quality)
-    if (qualityAssessment.qualityScore < 50) {
-      compressionImpact += 10;
-      compressionArtifacts.push('Poor quality may mask manipulation artifacts');
-    } else if (qualityAssessment.qualityScore < 70) {
-      compressionImpact += 5;
-    }
-
-    // Add codec suspicion
-    compressionImpact += codecAnalysis.suspicionScore;
-
-    // Cap the impact
-    compressionImpact = Math.min(15, compressionImpact);
+    // Only increase risk for codec suspicion (e.g. MJPEG)
+    const compressionRiskImpact = codecAnalysis.suspicionScore;
 
     // Adjust scores
-    const adjustedRiskScore = Math.min(100, detectionScores.riskScore + compressionImpact);
+    const adjustedRiskScore = Math.min(100, detectionScores.riskScore + compressionRiskImpact);
 
-    // Reduce confidence if quality is poor
-    const confidenceReduction = qualityAssessment.qualityScore < 60 ? 10 : 0;
+    // Reduce confidence if quality is poor (Harder to detect deepfakes)
+    let confidenceReduction = 0;
+
+    if (qualityAssessment.qualityScore < 40) {
+      confidenceReduction = 25; // Significant reduction for very poor quality
+    } else if (qualityAssessment.qualityScore < 60) {
+      confidenceReduction = 15;
+    } else if (qualityAssessment.qualityScore < 80) {
+      confidenceReduction = 5;
+    }
+
     const adjustedConfidence = Math.max(0, detectionScores.confidence - confidenceReduction);
 
     const compressionResults = {
@@ -154,7 +153,7 @@ export const analyzeCompression = async (perceptionData, detectionScores) => {
       compressionAnalysis: {
         bitrate: metadata.bitrate || 0,
         codec: metadata.codec || 'unknown',
-        compressionImpact: compressionImpact,
+        compressionImpact: compressionRiskImpact,
         qualityScore: qualityAssessment.qualityScore,
         bitsPerPixel: qualityAssessment.bitsPerPixel,
         artifacts: compressionArtifacts,

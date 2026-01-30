@@ -17,6 +17,8 @@ export interface ScanResult {
     audioMatch: number
     ganFingerprint: number
     temporalConsistency: number
+    peakRisk?: number
+    meanRisk?: number
   }
   status?: string
   mediaType?: string

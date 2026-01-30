@@ -29,20 +29,32 @@ if (config.ffmpeg.ffprobePath !== 'ffprobe') {
  * @param {number} frameRate - Frames per second to extract (default: 1)
  * @returns {Promise<string[]>} Array of frame file paths
  */
-export const extractFrames = async (inputPath, outputDir, frameRate = 1) => {
+/**
+ * Extract frames from video file
+ * @param {string} inputPath - Path to input video file
+ * @param {string} outputDir - Directory to save extracted frames
+ * @param {number} frameRate - Frames per second to extract (default: 1)
+ * @param {number} maxFrames - Maximum number of frames to extract (default: 60)
+ * @returns {Promise<string[]>} Array of frame file paths
+ */
+export const extractFrames = async (inputPath, outputDir, frameRate = 1, maxFrames = 60) => {
   return new Promise((resolve, reject) => {
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
 
-    const frames = [];
-    let frameCount = 0;
+    const outputOptions = [
+      `-vf fps=${frameRate}`,
+      '-q:v 2', // High quality
+    ];
+
+    // Add max frames limit if specified
+    if (maxFrames && maxFrames > 0) {
+      outputOptions.push(`-vframes ${maxFrames}`);
+    }
 
     ffmpeg(inputPath)
-      .outputOptions([
-        `-vf fps=${frameRate}`,
-        '-q:v 2', // High quality
-      ])
+      .outputOptions(outputOptions)
       .output(join(outputDir, 'frame_%04d.jpg'))
       .on('start', (commandLine) => {
         logger.debug(`FFmpeg frame extraction started: ${commandLine}`);

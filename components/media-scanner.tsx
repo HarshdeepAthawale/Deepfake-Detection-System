@@ -10,7 +10,6 @@ import {
   ShieldAlert,
   Fingerprint,
   Zap,
-  Info,
   MessageSquare,
   AlertTriangle,
 } from "lucide-react"
@@ -412,28 +411,13 @@ export function MediaScanner({ onScanResult }: { onScanResult?: (result: ScanRes
               <div className="text-[10px] font-mono text-muted-foreground">REF: SENTINEL_COGNITIVE_V2</div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-3">
-                {result.explanations.map((text, i) => (
-                  <div key={i} className="flex gap-3 text-[11px] font-mono leading-relaxed p-2 bg-primary/5 rounded-sm">
-                    <div className="text-primary font-bold">{i + 1}.</div>
-                    <div className="text-foreground">{text}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="bg-black/20 p-4 border border-primary/10 rounded-sm space-y-4">
-                <div className="flex items-center gap-2 text-[10px] font-bold text-primary uppercase mb-2">
-                  <Info size={14} />
-                  Agent_Recommendations
+            <div className="space-y-3">
+              {result.explanations.map((text, i) => (
+                <div key={i} className="flex gap-3 text-[11px] font-mono leading-relaxed p-2 bg-primary/5 rounded-sm">
+                  <div className="text-primary font-bold">{i + 1}.</div>
+                  <div className="text-foreground">{text}</div>
                 </div>
-                <ul className="space-y-2 text-[10px] font-mono text-muted-foreground list-disc pl-4">
-                  <li>Flag media for manual review by lead analyst</li>
-                  <li>Isolate source IP for origin tracing</li>
-                  <li>Compare against known Deepfake Fingerprint Database (DFD)</li>
-                  <li>Initiate chain-of-custody logging sequence</li>
-                </ul>
-              </div>
+              ))}
             </div>
           </div>
         )}
@@ -597,6 +581,12 @@ export function MediaScanner({ onScanResult }: { onScanResult?: (result: ScanRes
                 <AnalysisMetric label="AUDIO_PHONETIC_MATCH" value={result.metadata?.audioMatch || 0} />
                 <AnalysisMetric label="GAN_FINGERPRINT" value={result.metadata?.ganFingerprint || 0} />
                 <AnalysisMetric label="TEMPORAL_CONSISTENCY" value={result.metadata?.temporalConsistency || 0} />
+                {result.metadata?.peakRisk !== undefined && (
+                  <AnalysisMetric label="PEAK_RISK_SEGMENT" value={result.metadata.peakRisk} />
+                )}
+                {result.metadata?.meanRisk !== undefined && (
+                  <AnalysisMetric label="MEAN_RISK_LEVEL" value={result.metadata.meanRisk} />
+                )}
               </div>
             )}
             {status === "processing" && !result && (

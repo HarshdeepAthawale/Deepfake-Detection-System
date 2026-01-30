@@ -10,10 +10,13 @@ RUN apt-get update && apt-get install -y \
 
 # Copy requirements first to leverage cache
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy model files
-COPY efficientnet_b0_ffpp_c23 ./efficientnet_b0_ffpp_c23
+# Upgrade pip and install with increased timeout/retries for large packages
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir --timeout 300 --retries 5 -r requirements.txt
+
+# Pre-download the model during build for faster startup
+RUN python -c "from transformers import pipeline; pipeline('image-classification', model='prithivMLmods/Deepfake-Detect-Siglip2')"
 
 # Copy application code
 COPY . .

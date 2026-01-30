@@ -160,13 +160,13 @@ export const generateJSONExport = (scan) => {
     mimeType: scan.mimeType,
     status: scan.status,
     operativeId: scan.operativeId,
-    uploadedAt: scan.createdAt ? scan.createdAt.toISOString() : null,
+    uploadedAt: scan.createdAt ? new Date(scan.createdAt).toISOString() : null,
     result: scan.result || null,
     gpsCoordinates: scan.gpsCoordinates || null,
     tags: scan.tags || [],
     metadata: {
-      createdAt: scan.createdAt ? scan.createdAt.toISOString() : null,
-      updatedAt: scan.updatedAt ? scan.updatedAt.toISOString() : null,
+      createdAt: scan.createdAt ? new Date(scan.createdAt).toISOString() : null,
+      updatedAt: scan.updatedAt ? new Date(scan.updatedAt).toISOString() : null,
     },
   };
 };
@@ -234,7 +234,7 @@ export const generateCSVExport = (scans) => {
 export const getScanForExport = async (scanId, userId, userRole) => {
   try {
     const query = { scanId };
-    
+
     // Non-admins can only export their own scans
     if (userRole !== 'admin') {
       query.userId = userId;

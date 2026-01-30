@@ -63,13 +63,16 @@ const generateRichExplanations = (detectionResults, perceptionData) => {
   const uncertainty = detectionResults.uncertainty || 0;
   const frameCount = detectionResults.frameCount || 1;
 
+  const peakRisk = detectionResults.peakRisk || 0;
+  const meanRisk = detectionResults.meanRisk || 0;
+
   // Video/Image analysis
   if (videoScore > 75) {
     explanations.push({
       type: 'critical',
       message: 'Strong facial manipulation indicators detected',
       confidence: 'high',
-      details: `Model detected ${Math.round(videoScore)}% probability of synthetic facial features`
+      details: `Model detected ${Math.round(videoScore)}% probability of synthetic facial features (P90)`
     });
   } else if (videoScore > 60) {
     explanations.push({
@@ -84,6 +87,16 @@ const generateRichExplanations = (detectionResults, perceptionData) => {
       message: 'Minor facial analysis discrepancies noted',
       confidence: 'low',
       details: 'Some facial features show slight irregularities'
+    });
+  }
+
+  // Check for localized deepfakes (Peak Risk significantly higher than P90/Average)
+  if (peakRisk > videoScore + 15 && peakRisk > 70) {
+    explanations.push({
+      type: 'critical',
+      message: 'Localized deepfake segments detected',
+      confidence: 'high',
+      details: `Specific frames show very high manipulation probability (${Math.round(peakRisk)}%) despite lower average scores.`
     });
   }
 
@@ -211,6 +224,8 @@ export const generateExplanations = async (detectionResults, perceptionData) => 
     const riskScore = detectionResults.riskScore;
     const confidence = detectionResults.confidence || 0;
     const uncertainty = detectionResults.uncertainty || 0;
+    const peakRisk = detectionResults.peakRisk || 0;
+    const meanRisk = detectionResults.meanRisk || 0;
 
     // Calculate dynamic thresholds
     const thresholds = calculateDynamicThresholds(perceptionData, detectionResults);
@@ -253,6 +268,8 @@ export const generateExplanations = async (detectionResults, perceptionData) => 
         uncertainty: uncertainty,
         frameCount: detectionResults.frameCount || 1,
         thresholds: thresholds,
+        peakRisk: Math.round(peakRisk),
+        meanRisk: Math.round(meanRisk),
       },
     };
 

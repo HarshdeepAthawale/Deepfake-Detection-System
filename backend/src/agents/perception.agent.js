@@ -97,7 +97,9 @@ export const processMedia = async (filePath, scanId) => {
     if (isVideo) {
       try {
         const framesDir = path.join(processingDir, 'frames');
-        const frames = await extractFrames(filePath, framesDir, 1); // 1 frame per second
+        // Increase frame rate to capture more temporal data (4fps)
+        // Limit to max 60 frames to prevent OOM
+        const frames = await extractFrames(filePath, framesDir, 4, 60);
         perceptionResults.extractedFrames = frames;
         logger.info(`[PERCEPTION_AGENT] Extracted ${frames.length} frames`);
       } catch (error) {

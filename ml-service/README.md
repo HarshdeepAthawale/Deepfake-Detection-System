@@ -1,21 +1,17 @@
 # ML Service - Deepfake Detection API
 
-Python Flask service for deepfake detection using EfficientNet-B0 PyTorch model.
+Python Flask service for deepfake detection using the Hugging Face Deepfake-Detect-Siglip2 model.
 
 ## Overview
 
-This ML service provides inference endpoints for the deepfake detection system. It integrates with a trained **EfficientNet-B0** model fine-tuned on the **FaceForensics++ (FF++) C23** dataset. The model classifies images and video frames as Real (0) or Fake (1).
+This ML service provides inference endpoints for the deepfake detection system. It uses the **prithivMLmods/Deepfake-Detect-Siglip2** model from Hugging Face, which is based on SigLIP (Sigmoid Language-Image Pre-training) architecture optimized for deepfake detection.
 
 ## Model Details
 
-- **Architecture**: EfficientNet-B0 (ImageNet pretrained)
-- **Output**: 2 classes (Real=0, Fake=1)
-- **Input Size**: 224×224 RGB images
-- **Training Dataset**: FaceForensics++ C23
-- **Performance**: 
-  - Frame-Level AUC: 0.933
-  - Frame-Level Accuracy: 0.852
-  - Frame-Level F1-Score: 0.843
+- **Model**: [prithivMLmods/Deepfake-Detect-Siglip2](https://huggingface.co/prithivMLmods/Deepfake-Detect-Siglip2)
+- **Architecture**: SigLIP-based image classification
+- **Output**: Fake/Real classification with confidence scores
+- **Framework**: Hugging Face Transformers
 
 ## Installation
 
@@ -30,19 +26,20 @@ pip install -r requirements.txt
 
 ### Dependencies
 
+- **transformers** (>=4.36.0) - Hugging Face Transformers
 - **PyTorch** (>=2.0.0) - Deep learning framework
 - **torchvision** (>=0.15.0) - Computer vision utilities
 - **Flask** (>=2.3.0) - Web framework
 - **Pillow** (>=10.0.0) - Image processing
 - **NumPy** (>=1.24.0) - Numerical computing
-- **OpenCV** (>=4.8.0) - Media processing (optional)
+- **OpenCV** (>=4.8.0) - Media processing
+- **mediapipe** (>=0.10.0) - Face detection
 
 ## Running the Service
 
 ```bash
 # Set environment variables (optional)
 export PORT=5000
-export MODEL_PATH=../efficientnet_b0_ffpp_c23  # Path to model directory
 
 # Run the service
 python app.py
@@ -52,16 +49,7 @@ The service will start on `http://localhost:5000` by default.
 
 ### Model Loading
 
-The service automatically loads the model on startup from:
-1. Path specified in `MODEL_PATH` environment variable
-2. Default path: `../efficientnet_b0_ffpp_c23` (relative to ml-service directory)
-
-The model file should be one of:
-- `efficientnet_b0_ffpp_c23.pth` (preferred)
-- Any `.pth` or `.pt` file in the model directory
-- `data.pkl` (pickled format)
-
-If model loading fails, the service falls back to mock inference mode.
+The model is automatically downloaded from Hugging Face Hub on first startup. Subsequent runs use the cached model. The model is loaded as a pipeline for efficient inference.
 
 ## Endpoints
 
@@ -77,10 +65,10 @@ Returns service health status and model loading state:
 {
   "status": "healthy",
   "service": "deepfake-detection-ml-service",
-  "version": "1.0.0",
+  "version": "2.0.0",
+  "model": "prithivMLmods/Deepfake-Detect-Siglip2",
   "model_status": "loaded",
-  "using_fallback": false,
-  "timestamp": "2026-01-26T12:00:00"
+  "timestamp": "2026-01-30T12:00:00"
 }
 ```
 
@@ -99,7 +87,7 @@ Content-Type: application/json
   "metadata": {...},
   "extractedFrames": ["/path/to/frame1.jpg", "/path/to/frame2.jpg"],
   "extractedAudio": "/path/to/audio.wav",
-  "modelVersion": "v1"
+  "modelVersion": "v2"
 }
 ```
 
@@ -107,80 +95,77 @@ Content-Type: application/json
 ```json
 {
   "video_score": 75.5,
+  "peak_risk": 82.3,
+  "mean_risk": 68.1,
   "audio_score": 0.0,
   "gan_fingerprint": 75.5,
   "temporal_consistency": 85.2,
   "risk_score": 68.3,
   "confidence": 92.1,
-  "model_version": "v1",
+  "model_version": "v2",
   "inference_time": 1234
 }
 ```
 
 #### Score Descriptions
 
-- **video_score** (0-100): Probability that the media is fake, based on visual analysis
+- **video_score** (0-100): 90th percentile fake probability across frames
+- **peak_risk** (0-100): Maximum fake probability detected
+- **mean_risk** (0-100): Average fake probability across frames
 - **audio_score** (0-100): Audio analysis score (0 for image-based model)
-- **gan_fingerprint** (0-100): GAN artifact detection score (same as video_score)
-- **temporal_consistency** (0-100): Frame-to-frame consistency for videos (higher = more consistent)
+- **gan_fingerprint** (0-100): GAN artifact detection score
+- **temporal_consistency** (0-100): Frame-to-frame consistency for videos
 - **risk_score** (0-100): Overall risk assessment (weighted combination)
 - **confidence** (0-100): Model confidence in the prediction
 
 ## Model Inference Process
 
-1. **Image Processing**: 
+1. **Image Processing**:
    - Single image: Preprocessed and analyzed directly
-   - Video: Multiple frames extracted and processed in batches (max 30 frames)
+   - Video: Multiple frames extracted and processed (max 30 frames)
 
-2. **Preprocessing**:
-   - Resize to 224×224
+2. **Face Detection** (optional):
+   - Uses MediaPipe for face detection
+   - Crops and focuses on detected faces for better accuracy
+
+3. **Preprocessing**:
    - Convert to RGB
-   - Normalize using ImageNet statistics
-   - Convert to tensor format
+   - Hugging Face processor handles resizing and normalization
 
-3. **Inference**:
-   - Model outputs logits for 2 classes [Real, Fake]
-   - Softmax applied to get probabilities
-   - Scores calculated from probabilities
+4. **Inference**:
+   - Model classifies images as Fake or Real
+   - Returns probability scores for each class
 
-4. **Score Calculation**:
+5. **Score Calculation**:
    - Frame-level predictions aggregated for videos
+   - Uses 90th percentile for robust scoring
    - Temporal consistency calculated from frame variance
-   - Risk score computed as weighted combination
 
-## Integration with Backend
+## Docker
 
-The Node.js backend calls this service when:
-1. ML service is enabled (`ML_SERVICE_ENABLED=true`)
-2. ML service health check passes
-3. A scan is being processed through the detection agent
+Build and run with Docker:
 
-If the ML service is unavailable or model fails to load, the service gracefully falls back to mock inference mode.
+```bash
+# Build the image
+docker build -t deepfake-ml-service .
+
+# Run the container
+docker run -p 5000:5000 deepfake-ml-service
+```
+
+The Dockerfile pre-downloads the model during build for faster startup.
 
 ## Environment Variables
 
 - `PORT`: Service port (default: 5000)
-- `MODEL_PATH`: Path to model directory (default: `../efficientnet_b0_ffpp_c23`)
 - `FLASK_ENV`: Flask environment (development/production)
-
-## Error Handling
-
-The service includes comprehensive error handling:
-
-- **Model Loading Failures**: Falls back to mock inference
-- **Image Processing Errors**: Falls back to mock inference for that request
-- **Invalid Inputs**: Returns appropriate error responses
-- **Service Errors**: Returns 500 with error details
-
-All errors are logged with full context for debugging.
 
 ## Performance Considerations
 
 - Model is loaded once at startup (singleton pattern)
-- Batch processing for multiple frames
 - GPU acceleration if CUDA is available
 - Frame sampling for videos (max 30 frames per video)
-- Efficient tensor operations using PyTorch
+- Efficient pipeline-based inference using Hugging Face Transformers
 
 ## Development
 
@@ -199,10 +184,10 @@ curl -X POST http://localhost:5000/api/v1/inference \
     "hash": "sha256:test123",
     "mediaType": "IMAGE",
     "extractedFrames": ["/path/to/image.jpg"],
-    "modelVersion": "v1"
+    "modelVersion": "v2"
   }'
 ```
 
 ## Status
 
-✅ **Fully implemented** with EfficientNet-B0 model integration. The service uses real model inference for images and videos, with graceful fallback to mock inference if needed.
+✅ **Fully implemented** with Hugging Face Deepfake-Detect-Siglip2 model integration.

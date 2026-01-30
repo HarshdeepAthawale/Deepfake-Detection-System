@@ -166,6 +166,8 @@ export const callMLService = async (perceptionData) => {
         audioScore: result.audio_score || result.audioScore || 0,
         ganFingerprint: result.gan_fingerprint || result.ganFingerprint || 0,
         temporalConsistency: result.temporal_consistency || result.temporalConsistency || 0,
+        peakRisk: result.peak_risk || result.peakRisk || 0, // NEW
+        meanRisk: result.mean_risk || result.meanRisk || 0, // NEW
         riskScore: result.risk_score || result.riskScore || 0,
         confidence: result.confidence || 0,
         modelVersion: result.model_version || mlConfig.modelVersion,

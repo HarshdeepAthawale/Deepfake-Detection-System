@@ -148,7 +148,7 @@ export const uploadScan = async (req, res) => {
     });
   } catch (error) {
     logger.error('Upload scan error:', error);
-    
+
     // Clean up uploaded file on error
     if (req.file?.path && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
@@ -205,7 +205,7 @@ export const batchUploadScan = async (req, res) => {
     });
   } catch (error) {
     logger.error('Batch upload error:', error);
-    
+
     // Clean up uploaded files on error
     if (req.files && Array.isArray(req.files)) {
       req.files.forEach(file => {
@@ -236,7 +236,7 @@ export const getScan = async (req, res) => {
     // Format response to match frontend expectations
     const response = {
       id: scan.scanId,
-      timestamp: scan.createdAt.toISOString(),
+      timestamp: new Date(scan.createdAt).toISOString(),
       verdict: scan.result?.verdict || 'PENDING',
       confidence: scan.result?.confidence || 0,
       riskScore: scan.result?.riskScore || 0,
@@ -296,7 +296,7 @@ export const getHistory = async (req, res) => {
     const user = req.user;
     const page = parseInt(req.query.page || '1', 10);
     const limit = Math.min(parseInt(req.query.limit || '20', 10), 100); // Max 100 items per page
-    
+
     // Parse tags (can be comma-separated string or array)
     let tags = [];
     if (req.query.tags) {
@@ -339,7 +339,7 @@ export const getHistory = async (req, res) => {
     // Format scans to match frontend expectations
     const formattedScans = result.scans.map((scan) => ({
       id: scan.scanId,
-      timestamp: scan.createdAt.toISOString(),
+      timestamp: new Date(scan.createdAt).toISOString(),
       type: scan.mediaType,
       result: scan.result?.verdict || 'PENDING',
       score: scan.result?.confidence || 0,

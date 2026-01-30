@@ -110,7 +110,7 @@ export const getAuditLogById = async (logId) => {
     const log = await AuditLog.findById(logId)
       .lean()
       .populate('userId', 'email operativeId role');
-    
+
     if (!log) {
       throw new Error('Audit log not found');
     }
@@ -168,7 +168,7 @@ export const exportAuditLogs = async (filters = {}) => {
     const rows = logs.map((log) => {
       const user = log.userId || {};
       return [
-        log.createdAt.toISOString(),
+        new Date(log.createdAt).toISOString(),
         log.action,
         user.email || '',
         log.operativeId || '',

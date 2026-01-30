@@ -21,6 +21,24 @@ services:
     networks:
       - deepfake-network
 
+  # Redis Cache & Queue
+  redis:
+    image: redis:7-alpine
+    container_name: deepfake-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - deepfake-network
+
   # Backend API Service
   backend:
     build:
@@ -51,11 +69,14 @@ services:
       FRONTEND_URL: http://localhost:3002
       GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
       ML_SERVICE_URL: http://ml-service:5000
+      REDIS_URL: redis://redis:6379
     volumes:
       - uploads:/app/uploads
       - backend_logs:/app/logs
     depends_on:
       mongodb:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       ml-service:
         condition: service_started
@@ -113,6 +134,7 @@ services:
 volumes:
   mongo-data:
   mongodb_config:
+  redis-data:
   uploads: # Shared volume for uploads between backend and ML service
   backend_logs:
 

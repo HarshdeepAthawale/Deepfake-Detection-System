@@ -1,0 +1,15 @@
+INFO:__main__:[ML_SERVICE] Loading model on startup...
+INFO:model_loader:[MODEL_LOADER] Loading model from: /home/harshdeep/Documents/Projects/Deepfake-Detection-System/ml-service/efficientnet_b0_ffpp_c23
+INFO:model_loader:[MODEL_LOADER] Using device: cpu
+INFO:model_loader:[MODEL_LOADER] Building EfficientNet-B0 architecture...
+INFO:model_loader:[MODEL_LOADER] Found .pth file: /home/harshdeep/Documents/Projects/Deepfake-Detection-System/ml-service/efficientnet_b0_ffpp_c23/efficientnet_b0_ffpp_c23.pth
+INFO:model_loader:[MODEL_LOADER] Loading from file: /home/harshdeep/Documents/Projects/Deepfake-Detection-System/ml-service/efficientnet_b0_ffpp_c23/efficientnet_b0_ffpp_c23.pth
+INFO:model_loader:[MODEL_LOADER] State dict loaded successfully
+INFO:model_loader:[MODEL_LOADER] Model loaded successfully
+INFO:__main__:[ML_SERVICE] Model loaded successfully
+INFO:__main__:[ML_SERVICE] Starting ML service on port 5000
+INFO:__main__:[ML_SERVICE] Model loaded: True
+ * Serving Flask app 'app'
+ * Debug mode: off
+Address already in use
+Port 5000 is in use by another program. Either identify and stop that program, or start the server with a different port.
